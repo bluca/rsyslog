@@ -1,20 +1,54 @@
 language: c
 
-before_install:
-  - travis_retry sudo apt-get install -qq python-software-properties
-  - travis_retry sudo add-apt-repository ppa:adiscon/v8-devel -y
-  - travis_retry sudo apt-get update -qq
+sudo: false
 
-install:
-  - travis_retry sudo apt-get install -qq build-essential automake pkg-config libtool autoconf autotools-dev gdb valgrind libdbi-dev libsnmp-dev
-  - travis_retry sudo apt-get install -qq libestr-dev librelp-dev libjson0-dev zlib1g-dev uuid-dev libgcrypt11-dev liblogging-stdlog-dev bison flex
-  - travis_retry sudo apt-get install -qq python-docutils liblognorm1-dev
+addons:
+  apt:
+    packages:
+    - python-software-properties
+    - build-essential
+    - automake
+    - pkg-config
+    - libtool
+    - autoconf
+    - autotools-dev
+    - gdb
+    - valgrind
+    - libdbi-dev
+    - libsnmp-dev
+    - libjson0-dev
+    - zlib1g-dev
+    - uuid-dev
+    - libgcrypt11-dev
+    - bison
+    - flex
+    - python-docutils
+
+env:
+ global:
+  - BUILD_PREFIX=$PWD/tmp
+  - CFLAGS=-I${BUILD_PREFIX}/include
+  - CPPFLAGS=-I${BUILD_PREFIX}/include
+  - CXXFLAGS=-I${BUILD_PREFIX}/include
+  - LDFLAGS=-L${BUILD_PREFIX}/lib
+  - PKG_CONFIG_PATH=${BUILD_PREFIX}/lib/pkgconfig
+
+before_script:
+ - mkdir tmp
+ - git clone git://github.com/rsyslog/liblogging.git
+ - ( cd liblogging; autoreconf --force --verbose --install; ./configure --prefix=${BUILD_PREFIX} --disable-testbench; make install )
+ - git clone git://github.com/rsyslog/libestr.git
+ - ( cd libestr; autoreconf --force --verbose --install; ./configure --prefix=${BUILD_PREFIX} --disable-journal --disable-rfc3195 --disable-man-pages; make install )
+ - git clone git://github.com/rsyslog/liblognorm.git
+ - ( cd liblognorm; autoreconf --force --verbose --install; ./configure --prefix=${BUILD_PREFIX} --build=x86_64-pc-linux-gnu --host=x86_64-pc-linux-gnu; make install )
+ - git clone git://github.com/rsyslog/librelp.git
+ - ( cd librelp; autoreconf --force --verbose --install; ./configure --prefix=${BUILD_PREFIX} --build=x86_64-pc-linux-gnu --host=x86_64-pc-linux-gnu; make install )
 
 script:
   - autoreconf --force --verbose --install
   # add "CC=clang" to configure if clang is desired
-  - ./configure  --prefix=/opt/rsyslog --build=x86_64-pc-linux-gnu --host=x86_64-pc-linux-gnu --mandir=/usr/share/man --infodir=/usr/share/info --datadir=/usr/share --sysconfdir=/etc --localstatedir=/var/lib --disable-dependency-tracking --disable-silent-rules --libdir=/usr/lib64 --docdir=/usr/share/doc/rsyslog --disable-generate-man-pages --enable-testbench --enable-imdiag --enable-imfile --enable-impstats --enable-imptcp --enable-mmanon --enable-mmaudit --enable-mmfields --enable-mmjsonparse --enable-mmpstrucdata --enable-mmsequence --enable-mmutf8fix --enable-mail --enable-omprog --enable-omruleset --enable-omstdout --enable-omuxsock --enable-pmaixforwardedfrom --enable-pmciscoios --enable-pmcisconames --enable-pmlastmsg --enable-pmsnare --enable-libgcrypt --enable-mmnormalize --disable-omudpspoof --enable-relp --disable-snmp --disable-mmsnmptrapd --enable-gnutls
-  - make && make check #make dist && make check && sudo make install
+  - ./configure  --prefix=${BUILD_PREFIX} --build=x86_64-pc-linux-gnu --host=x86_64-pc-linux-gnu --mandir=${BUILD_PREFIX}/share/man --infodir=${BUILD_PREFIX}/share/info --datadir=${BUILD_PREFIX}/share --sysconfdir=${BUILD_PREFIX}/etc --localstatedir=${BUILD_PREFIX}/var/lib --disable-dependency-tracking --disable-silent-rules --libdir=${BUILD_PREFIX}/lib --docdir=${BUILD_PREFIX}/share/doc/rsyslog --disable-generate-man-pages --enable-testbench --enable-imdiag --enable-imfile --enable-impstats --enable-imptcp --enable-mmanon --enable-mmaudit --enable-mmfields --enable-mmjsonparse --enable-mmpstrucdata --enable-mmsequence --enable-mmutf8fix --enable-mail --enable-omprog --enable-omruleset --enable-omstdout --enable-omuxsock --enable-pmaixforwardedfrom --enable-pmciscoios --enable-pmcisconames --enable-pmlastmsg --enable-pmsnare --enable-libgcrypt --enable-mmnormalize --disable-omudpspoof --enable-relp --disable-snmp --disable-mmsnmptrapd --enable-gnutls
+  - make && make check #make dist && make check && make install
   - make distcheck
   #- env TESTS="json_array_looping.sh" make -e check
   # only for newer autoconf tools you need to add:
